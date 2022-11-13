@@ -6,7 +6,7 @@ conda activate pyvo
 ```
 
 ## Demo
-
+Press 'q' to end the demo sooner than the full duration.
 
 ### Feature matches
 ![](https://github.com/hpennington/mono-visual-odometry/raw/main/features.jpeg)
