@@ -8,4 +8,5 @@ conda activate pyvo
 
 ## Demo
 
-![](https://hpennington-cv.s3.amazonaws.com/features_out.mp4)
+
+![video](https://hpennington-cv.s3.amazonaws.com/features_out.mp4)
