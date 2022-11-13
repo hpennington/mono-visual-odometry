@@ -1,0 +1,17 @@
+name: pyvo
+channels:
+  - defaults
+dependencies:
+  - ipykernel
+  - ipympl
+  - ipython
+  - ipywidgets
+  - matplotlib
+  - pillow
+  - pip
+  - python
+  - scikit-image
+  - scipy
+  - pip:
+    - numpy
+    - opencv-python
