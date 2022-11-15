@@ -15,3 +15,5 @@ Press 'q' to end the demo sooner than the full duration.
 ### Red is the ground truth and green is the predicted pose
 ![](https://github.com/hpennington/mono-visual-odometry/raw/main/vo.png)
 
+![](https://github.com/hpennington/mono-visual-odometry/raw/triangulation/point_cloud.png)
+
