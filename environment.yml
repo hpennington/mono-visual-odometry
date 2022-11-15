@@ -1,6 +1,7 @@
 name: pyvo
 channels:
   - defaults
+  - open3d-admin
 dependencies:
   - ipykernel
   - ipympl
@@ -9,9 +10,16 @@ dependencies:
   - matplotlib
   - pillow
   - pip
-  - python
+  - python=3.8
   - scikit-image
   - scipy
+  - open3d
+  - scikit-learn
   - pip:
     - numpy
     - opencv-python
+    - plyfile
+    - tqdm
+    - sklearn
+    - addict
+    - pandas
