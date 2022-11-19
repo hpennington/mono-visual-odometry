@@ -1,7 +1,19 @@
-# Mono visual odometry
 
-## Point cloud
 ![](https://github.com/hpennington/mono-visual-odometry/raw/numpy/point_cloud.gif)
+
+# Mono visual odometry
+A Work in Progress implementation of visual odometry in numpy. Currently aided by some opencv functions. The plan is to remove these and implement with purely numpy.
+
+
+#### Functions to implement in native numpy
+  - [ ] goodFeaturesToTrack
+  - [ ] ransac
+  - [ ] BFMatcher
+  - [x] triangulate
+  - [x] extract_pose
+  - [x] fundamentalToEssential
+  - [x] make_homogeneous
+
 
 ## Setup
 
