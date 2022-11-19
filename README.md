@@ -1,7 +1,7 @@
 
 ![](https://github.com/hpennington/mono-visual-odometry/raw/numpy/point_cloud.gif)
 
-# Mono visual odometry
+# Monocular visual odometry
 A Work in Progress implementation of visual odometry in numpy. Currently aided by some opencv functions. The plan is to remove these and implement with purely numpy.
 
 
