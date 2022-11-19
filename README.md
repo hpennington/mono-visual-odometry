@@ -26,6 +26,7 @@ conda activate pyvo
 Press 'q' to end the demo sooner than the full duration.
 
 ### Feature matches
+The red and green points represent the detected feature in the current and previous frame. A blue line is draw between these points.
 ![](https://github.com/hpennington/mono-visual-odometry/raw/main/features.jpeg)
 
 
