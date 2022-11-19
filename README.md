@@ -9,6 +9,7 @@ A Work in Progress implementation of visual odometry in numpy. Currently aided b
   - [ ] goodFeaturesToTrack
   - [ ] ransac
   - [ ] BFMatcher
+  - [ ] ORB feature descriptor
   - [x] triangulate
   - [x] extract_pose (Needs refactoring)
   - [x] fundamentalToEssential
