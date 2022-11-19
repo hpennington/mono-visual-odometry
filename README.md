@@ -10,7 +10,7 @@ A Work in Progress implementation of visual odometry in numpy. Currently aided b
   - [ ] ransac
   - [ ] BFMatcher
   - [x] triangulate
-  - [x] extract_pose
+  - [x] extract_pose (Needs refactoring)
   - [x] fundamentalToEssential
   - [x] make_homogeneous
 
