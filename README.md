@@ -34,7 +34,7 @@ Red is the ground truth and green is the predicted pose
 ![](https://github.com/hpennington/mono-visual-odometry/raw/main/vo.png)
 
 ### Point cloud
-Open the point cloud in the open3d app.
+Open the point cloud in the open3d app. http://www.open3d.org/download/
 ![](https://github.com/hpennington/mono-visual-odometry/raw/triangulation/point_cloud.png)
 
 
