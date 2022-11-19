@@ -17,3 +17,5 @@ Press 'q' to end the demo sooner than the full duration.
 
 ![](https://github.com/hpennington/mono-visual-odometry/raw/triangulation/point_cloud.png)
 
+![](https://github.com/hpennington/mono-visual-odometry/raw/numpy/point_cloud.gif)
+
