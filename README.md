@@ -7,11 +7,12 @@ A Work in Progress implementation of visual odometry in numpy. Currently aided b
 
 #### Functions to implement in native numpy
   - [ ] goodFeaturesToTrack
-  - [ ] ransac
+  - [x] ransac
+  - [ ] FundamentalMatrixTransform
   - [ ] BFMatcher
   - [ ] ORB feature descriptor
   - [x] triangulate
-  - [x] extract_pose (Needs refactoring)
+  - [x] extract_pose (Needs refactoring for deciding ambiguities)
   - [x] fundamentalToEssential
   - [x] make_homogeneous
 
