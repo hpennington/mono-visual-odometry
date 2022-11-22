@@ -8,67 +8,6 @@ def fundamental_fit(X, Y):
     regressor.estimate(X, Y)
     F = regressor.params
     return F
-#     M = X.shape[0]
-#     A = np.ones((M, 9))
-#     n, d = X.shape
-#     centroid = np.mean(X, axis=0)
-
-#     centered = X - centroid
-#     rms = np.sqrt(np.sum(centered ** 2) / n)
-
-#     # if all the points are the same, the transformation matrix cannot be
-#     # created. We return an equivalent matrix with np.nans as sentinel values.
-#     # This obviates the need for try/except blocks in functions calling this
-#     # one, and those are only needed when actual 0 is reached, rather than some
-#     # small value; ie, we don't need to worry about numerical stability here,
-#     # only actual 0.
-#     if rms == 0:
-#         return np.full((d + 1, d + 1), np.nan), np.full_like(X, np.nan)
-
-#     norm_factor = np.sqrt(d) / rms
-
-#     part_matrix = norm_factor * np.concatenate(
-#             (np.eye(d), -centroid[:, np.newaxis]), axis=1
-#             )
-#     matrix = np.concatenate(
-#             (part_matrix, [[0,] * d + [1]]), axis=0
-#             )
-
-#     points_h = np.row_stack([X.T, np.ones(n)])
-
-#     new_points_h = (matrix @ points_h).T
-
-#     new_points = new_points_h[:, :d]
-#     new_points /= new_points_h[:, d:]
-
-#     A[:, :2] = X
-#     A[:, :3] *= X[:, 0, np.newaxis]
-#     A[:, 3:5] = X
-#     A[:, 3:6] *= Y[:, 1, np.newaxis]
-#     A[:, 6:8] = X
-
-#     # Solve for the nullspace of the constraint matrix.
-#     _, _, V = np.linalg.svd(A)
-#     F_normalized = V[-1, :].reshape(3, 3)
-
-#     # Enforcing the internal constraint that two singular values must be
-#     # non-zero and one must be zero.
-#     U, S, V = np.linalg.svd(F_normalized)
-#     S[2] = 0
-#     F = U @ np.diag(S) @ V
-
-#     params = Y.T @ F @ X
-
-#     # _, _, V = np.linalg.svd(A)
-#     # F = V[-1, :].reshape(3, 3)
-
-#     # # Enforcing the internal constraint that two singular values must be
-#     # # non-zero and one must be zero.
-#     # U, S, V = np.linalg.svd(F)
-#     # S[0] = S[1] = (S[0] + S[1]) / 2.0
-#     # S[2] = 0
-#     # params = U @ np.diag(S) @ V
-#     return params
 
 def calculate_residuals(F, X, Y):
     X = np.column_stack([X, np.ones(X.shape[0])])
