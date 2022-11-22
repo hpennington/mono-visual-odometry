@@ -24,6 +24,9 @@ conda env create -f environment.yml
 conda activate pyvo
 ```
 
+My suggestion is to open src/visual_odometry.ipynb in VS Code.
+Any web browser and jupyter notebook will work, but I find that VS Code make the nicest notebook environment.
+
 ## Demo
 Press 'q' to end the demo sooner than the full duration.
 
