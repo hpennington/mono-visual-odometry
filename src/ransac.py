@@ -1,20 +1,45 @@
 import numpy as np
-from utils import make_homogeneous
-from skimage.transform import FundamentalMatrixTransform
+from utils import make_homogeneous, center_and_normalize_points
 
 
 class FundamentalMatrixModel:
     def __init__(self):
-        regressor = FundamentalMatrixTransform()
-        self.regressor = regressor
         self.params = None
 
     def fit(self, X, Y):
-        self.regressor.estimate(X, Y)
-        self.params = self.regressor.params
+        X_matrix, X = center_and_normalize_points(X)
+        Y_matrix, Y = center_and_normalize_points(Y)
+        m = X.shape[0]
+        A = np.zeros((m, 9))
+
+        for i in range(m):
+            x = X[i, 0]
+            xp = Y[i, 0]
+            y = X[i, 1]
+            yp = Y[i, 1]
+            A[i] = [xp*x, xp*y, xp, yp*x, yp*y, yp, x, y, 1]
+
+        U, S, Vt = np.linalg.svd(A)
+        F = Vt[-1, :].reshape(3, 3)
+
+        U, S, Vt = np.linalg.svd(F)
+        S[2] = 0
+        F = U @ np.diag(S) @ Vt    
+        self.params = Y_matrix.T @ F @ X_matrix
 
     def calculate_residuals(self, X, Y):
-        return self.regressor.residuals(X, Y)
+        # Compute the Sampson distance.
+        # src_homogeneous = np.column_stack([X, np.ones(X.shape[0])])
+        src_homogeneous = make_homogeneous(X)
+        dst_homogeneous = make_homogeneous(Y)
+
+        F_src = self.params @ src_homogeneous.T
+        Ft_dst = self.params.T @ dst_homogeneous.T
+
+        dst_F_src = np.sum(dst_homogeneous * F_src.T, axis=1)
+
+        return np.abs(dst_F_src) / np.sqrt(F_src[0] ** 2 + F_src[1] ** 2
+                                        + Ft_dst[0] ** 2 + Ft_dst[1] ** 2)
 
 
 def ransac(pairs, min_samples, residual_threshold, max_trials):
