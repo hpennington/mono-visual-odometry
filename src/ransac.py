@@ -3,11 +3,64 @@ from utils import make_homogeneous
 from skimage.transform import FundamentalMatrixTransform
 
 
+def center_normalize(X):
+    points = X
+    n, d = points.shape
+    centroid = np.mean(points, axis=0)
+
+    centered = points - centroid
+    rms = np.sqrt(np.sum(centered ** 2) / n)
+
+    # if all the points are the same, the transformation matrix cannot be
+    # created. We return an equivalent matrix with np.nans as sentinel values.
+    # This obviates the need for try/except blocks in functions calling this
+    # one, and those are only needed when actual 0 is reached, rather than some
+    # small value; ie, we don't need to worry about numerical stability here,
+    # only actual 0.
+    if rms == 0:
+        return np.full((d + 1, d + 1), np.nan), np.full_like(points, np.nan)
+
+    norm_factor = np.sqrt(d) / rms
+
+    part_matrix = norm_factor * np.concatenate(
+            (np.eye(d), -centroid[:, np.newaxis]), axis=1
+            )
+    matrix = np.concatenate(
+            (part_matrix, [[0,] * d + [1]]), axis=0
+            )
+
+    points_h = np.row_stack([points.T, np.ones(n)])
+
+    new_points_h = (matrix @ points_h).T
+
+    new_points = new_points_h[:, :d]
+    new_points /= new_points_h[:, d:]
+    return matrix, new_points
+
 def fundamental_fit(X, Y):
-    regressor = FundamentalMatrixTransform()
-    regressor.estimate(X, Y)
-    F = regressor.params
+    # Normalize points with origin in the center and distance equal sqrt(2)
+    X_matrix, X = center_normalize(X)
+    Y_matrix, Y = center_normalize(Y)
+
+    A = np.ones((X.shape[0], 9))
+    A[:, :2] = X
+    A[:, :3] *= Y[:, 0, np.newaxis]
+    A[:, 3:5] = X
+    A[:, 3:6] *= Y[:, 1, np.newaxis]
+    A[:, 6:8] = X
+
+    # Solve for the nullspace of the constraint matrix.
+    _, _, V = np.linalg.svd(A)
+    F_normalized = V[-1, :].reshape(3, 3)
+    # Estimate the fundamental matrix
+    U, S, V = np.linalg.svd(F_normalized)
+    S[2] = 0
+    F = U @ np.diag(S) @ V
+
+    F = Y_matrix.T @ F @ X_matrix
+
     return F
+
 
 def calculate_residuals(F, X, Y):
     X = np.column_stack([X, np.ones(X.shape[0])])
