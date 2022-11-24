@@ -29,7 +29,6 @@ class FundamentalMatrixModel:
 
     def calculate_residuals(self, X, Y):
         # Compute the Sampson distance.
-        # src_homogeneous = np.column_stack([X, np.ones(X.shape[0])])
         src_homogeneous = make_homogeneous(X)
         dst_homogeneous = make_homogeneous(Y)
 
@@ -38,8 +37,7 @@ class FundamentalMatrixModel:
 
         dst_F_src = np.sum(dst_homogeneous * F_src.T, axis=1)
 
-        return np.abs(dst_F_src) / np.sqrt(F_src[0] ** 2 + F_src[1] ** 2
-                                        + Ft_dst[0] ** 2 + Ft_dst[1] ** 2)
+        return np.abs(dst_F_src) / np.sqrt(F_src[0] ** 2 + F_src[1] ** 2 + Ft_dst[0] ** 2 + Ft_dst[1] ** 2)
 
 
 def ransac(pairs, min_samples, residual_threshold, max_trials):
