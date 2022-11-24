@@ -14,7 +14,6 @@ def display_mat(M, fmt='jpeg'):
     display.display(display.Image(data=f.getvalue()))
 
 def make_homogeneous(x):
-    # return np.array([x[0], x[1], 1])
     return np.column_stack([x, np.ones(x.shape[0])])
 
 def skew_symmetric(x):

@@ -11,7 +11,7 @@ def fundamentalToEssential(F):
     return U @ S @ V
 
 # Extract pose from the essential matrix E
-def extract_pose(E, K, x1, x2):
+def extract_pose(E, x1, x2):
     U, _, V = np.linalg.svd(E)
     
     # There are four possible poses from the essential matrix decomposition.
@@ -35,22 +35,6 @@ def extract_pose(E, K, x1, x2):
 
     if t[2] < 0:
         t = -t
-
-    # # We can use the technique from "Geometry, Constraints and Computation of the Trifocal Tensor" by Ressl
-    # M = skew_symmetric(R.T @ t)
-    # x1 = make_homogeneous(x1)
-    # x2 = make_homogeneous(x2)
-    # X1 = M @ np.linalg.inv(K) @ x1
-    # X2 = M @ R.T @ np.linalg.inv(K) @ x2
-
-    # if X1[2] * X2[2] < 0:
-    #     R = U @ W.T @ V
-    #     M = skew_symmetric(R.T @ t)
-    #     X1 = M @ np.linalg.inv(K) @ x1
-
-    # if X1[2] < 0:
-    #     t = -t
-    # t = -t
 
     return R, t
 
