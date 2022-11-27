@@ -40,7 +40,7 @@ class FundamentalMatrixModel:
         return np.abs(dst_F_src) / np.sqrt(F_src[0] ** 2 + F_src[1] ** 2 + Ft_dst[0] ** 2 + Ft_dst[1] ** 2)
 
 
-def ransac(pairs, min_samples, residual_threshold, max_trials):
+def ransac(regressor, pairs, min_samples, residual_threshold, max_trials):
     i = 0
     max_model = None
     max_inliers = None
@@ -60,7 +60,6 @@ def ransac(pairs, min_samples, residual_threshold, max_trials):
         x = np.array(x)
         y = np.array(y)
 
-        regressor = FundamentalMatrixModel()
         regressor.fit(x, y)
         F = regressor.params
         residuals = np.abs(regressor.calculate_residuals(pairs[:, 0], pairs[:, 1]))
