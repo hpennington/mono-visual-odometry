@@ -1,6 +1,16 @@
 import numpy as np
 
 
+def normalize(Kinv, pts):
+    pts = np.concatenate([pts, np.array([1.0])])
+    return (Kinv @ pts).T[:2]
+
+def make_homogeneous(x):
+    return np.column_stack([x, np.ones(x.shape[0])])
+
+def skew_symmetric(x):
+    return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
+
 def fundamentalToEssential(F):
     U, _, V = np.linalg.svd(F)
     S = np.array([
@@ -67,3 +77,38 @@ def triangulate(pose1, pose2, pts1, pts2, R, t):
         out[i] = Vt[3]
 
     return out
+
+class FundamentalMatrixModel:
+    def __init__(self):
+        self.params = None
+
+    def fit(self, X, Y):
+        m = X.shape[0]
+        A = np.zeros((m, 9))
+
+        for i in range(m):
+            x = X[i, 0]
+            xp = Y[i, 0]
+            y = X[i, 1]
+            yp = Y[i, 1]
+            A[i] = [xp*x, xp*y, xp, yp*x, yp*y, yp, x, y, 1]
+
+        U, S, Vt = np.linalg.svd(A)
+        F = Vt[-1, :].reshape(3, 3)
+
+        U, S, Vt = np.linalg.svd(F)
+        S[2] = 0
+        F = U @ np.diag(S) @ Vt    
+        self.params = F
+
+    def calculate_residuals(self, X, Y):
+        # Compute the Sampson distance.
+        src_homogeneous = make_homogeneous(X)
+        dst_homogeneous = make_homogeneous(Y)
+
+        F_src = self.params @ src_homogeneous.T
+        Ft_dst = self.params.T @ dst_homogeneous.T
+
+        dst_F_src = np.sum(dst_homogeneous * F_src.T, axis=1)
+
+        return np.abs(dst_F_src) / np.sqrt(F_src[0] ** 2 + F_src[1] ** 2 + Ft_dst[0] ** 2 + Ft_dst[1] ** 2)
