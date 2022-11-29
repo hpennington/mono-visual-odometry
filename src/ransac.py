@@ -1,5 +1,5 @@
 import numpy as np
-from utils import make_homogeneous, center_and_normalize_points
+from utils import make_homogeneous
 
 
 class FundamentalMatrixModel:
@@ -7,8 +7,6 @@ class FundamentalMatrixModel:
         self.params = None
 
     def fit(self, X, Y):
-        X_matrix, X = center_and_normalize_points(X)
-        Y_matrix, Y = center_and_normalize_points(Y)
         m = X.shape[0]
         A = np.zeros((m, 9))
 
@@ -25,7 +23,7 @@ class FundamentalMatrixModel:
         U, S, Vt = np.linalg.svd(F)
         S[2] = 0
         F = U @ np.diag(S) @ Vt    
-        self.params = Y_matrix.T @ F @ X_matrix
+        self.params = F
 
     def calculate_residuals(self, X, Y):
         # Compute the Sampson distance.
