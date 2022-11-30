@@ -12,6 +12,18 @@ def make_homogeneous(x):
 def skew_symmetric(x):
     return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
 
+def create_normalization_matrix(H, W):
+    T = np.eye(3)
+    sx = 1 / (W // 2)
+    sy = 1 / (H // 2)
+    tx = sx * (W // 2)
+    ty = sy * (H // 2)
+    T[0, 2] = -tx 
+    T[1, 2] = -ty
+    T[0, 0] = sx
+    T[1, 1] = sy
+    return T
+
 def fundamentalToEssential(F):
     U, _, V = np.linalg.svd(F)
     S = np.array([
@@ -54,6 +66,13 @@ def integrate_pose(R, R_abs, t, t_abs, tscale):
     ts = t * tscale
     t_abs = t_abs + R_abs.dot(ts)
     return R_abs, t_abs
+
+def calculate_projection(R, t, last_proj):
+    Rt = np.eye(4)
+    Rt[:3, :3] = R
+    Rt[:3, 3] = t.T
+    RT = np.linalg.inv(Rt)
+    return np.dot(RT, last_proj)
 
 # Triangulate from Hartley and Zisserman
 def triangulate(pose1, pose2, pts1, pts2, R, t):
