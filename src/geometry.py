@@ -1,9 +1,10 @@
 import numpy as np
 
 
-def normalize(Kinv, pts):
-    pts = np.concatenate([pts, np.array([1.0])])
-    return (Kinv @ pts).T[:2]
+def normalize(x):
+    x = np.asarray(x)
+    x = (x - 127) / 400
+    return x
 
 def make_homogeneous(x):
     return np.column_stack([x, np.ones(x.shape[0])])
