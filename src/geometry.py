@@ -49,6 +49,12 @@ def extract_pose(E, x1, x2):
 
     return R, t
 
+def integrate_pose(R, R_abs, t, t_abs, tscale):
+    R_abs = np.dot(R, R_abs)
+    ts = t * tscale
+    t_abs = t_abs + R_abs.dot(ts)
+    return R_abs, t_abs
+
 # Triangulate from Hartley and Zisserman
 def triangulate(pose1, pose2, pts1, pts2, R, t):
     out = np.zeros((pts1.shape[0], 4))
