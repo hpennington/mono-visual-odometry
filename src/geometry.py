@@ -61,7 +61,10 @@ def extract_pose(E, x1, x2):
 
     return R, t
 
-def integrate_pose(pose_abs, pose):
+def integrate_pose(pose_abs, R, t):
+    pose = np.eye(4)
+    pose[:3, :3] = R
+    pose[:3, 3] = t.T
     return np.dot(pose_abs, pose)
 
 def calculate_projection(R, t, last_proj):
