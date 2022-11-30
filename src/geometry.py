@@ -1,10 +1,10 @@
 import numpy as np
 
 
-def normalize(x):
-    x = np.asarray(x)
-    x = (x - 127) / 400
-    return x
+def normalize(T, x):
+    x = np.concatenate([np.asarray(x), [1]]).reshape(3, 1)
+    result = np.dot(T, x).T[0, :2]
+    return result
 
 def make_homogeneous(x):
     return np.column_stack([x, np.ones(x.shape[0])])
