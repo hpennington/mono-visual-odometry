@@ -2,8 +2,8 @@ import numpy as np
 
 
 def normalize(T, x):
-    x = np.concatenate([np.asarray(x), [1]]).reshape(3, 1)
-    result = np.dot(T, x).T[0, :2]
+    x = make_homogeneous(x)
+    result = np.dot(T, x.T).T[:, :2]
     return result
 
 def make_homogeneous(x):
