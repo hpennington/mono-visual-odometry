@@ -137,7 +137,7 @@ class FundamentalMatrixModel:
         Fx = F @ X.T
         Fty = F.T @ Y.T
 
-        numerator = np.abs(np.sqrt(np.sum(Y * Fx.T, axis=1)**2))
+        numerator = np.sqrt(np.sum(Y.T * Fx, axis=0)**2)
         denominater = np.sqrt(Fx[0]**2 + Fx[1]**2 + Fty[0]**2 + Fty[1]**2)
         result = (numerator / denominater).T
         
