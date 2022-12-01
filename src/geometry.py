@@ -61,17 +61,19 @@ def extract_pose(E, x1, x2):
 
     return R, t
 
-def integrate_pose(pose_abs, R, t):
+def pack_Rt(R, t):
     pose = np.eye(4)
     pose[:3, :3] = R
     pose[:3, 3] = t.T
+    return pose
+
+def integrate_pose(pose_abs, R, t):
+    pose = pack_Rt(R, t)
     return np.dot(pose_abs, pose)
 
 def calculate_projection(R, t, last_proj):
-    Rt = np.eye(4)
-    Rt[:3, :3] = R
-    Rt[:3, 3] = t.T
-    RT = np.linalg.inv(Rt)
+    pose = pack_Rt(R, t)
+    RT = np.linalg.inv(pose)
     return np.dot(RT, last_proj)
 
 # Triangulate from Hartley and Zisserman
