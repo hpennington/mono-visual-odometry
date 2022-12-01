@@ -24,7 +24,7 @@ def create_normalization_matrix(H, W):
     T[1, 1] = sy
     return T
 
-def fundamentalToEssential(F):
+def fundamental_to_essential(F):
     U, _, V = np.linalg.svd(F)
     S = np.array([
         [1, 0, 0],
