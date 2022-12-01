@@ -130,13 +130,16 @@ class FundamentalMatrixModel:
         self.params = F
 
     def calculate_residuals(self, x, y):
-        # Compute the Sampson distance.
         X = make_homogeneous(x)
         Y = make_homogeneous(y)
 
-        F_src = self.params @ X.T
-        Ft_dst = self.params.T @ Y.T
+        F = self.params
+        Fx = F @ X.T
+        Fty = F.T @ Y.T
 
-        dst_F_src = np.sum(Y * F_src.T, axis=1)
-
-        return np.abs(dst_F_src) / np.sqrt(F_src[0] ** 2 + F_src[1] ** 2 + Ft_dst[0] ** 2 + Ft_dst[1] ** 2)
+        numerator = np.abs(np.sqrt(np.sum(Y * Fx.T, axis=1)**2))
+        denominater = np.sqrt(Fx[0]**2 + Fx[1]**2 + Fty[0]**2 + Fty[1]**2)
+        result = (numerator / denominater).T
+        
+        return result
+    
