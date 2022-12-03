@@ -1,6 +1,8 @@
 
-import cv2
+# import cv2
+import PIL
 import time
+import signal
 import numpy as np
 from matplotlib import pyplot as plt
 from os import listdir
@@ -11,6 +13,13 @@ from ransac import ransac
 from features import extract_features, bruteforce_match
 from geometry import triangulate, fundamental_to_essential, \
     extract_pose, normalize, FundamentalMatrixModel, integrate_pose, calculate_projection, create_normalization_matrix
+
+exitInvoked = False
+
+def handler(signum, frame):
+    global exitInvoked
+    print("handler")
+    exitInvoked = True
 
 # Script parameters
 KITTI = True
@@ -55,22 +64,24 @@ if KITTI == True:
         train_labels = np.array([[float(x) for x in y] for y in train_labels])
         train_labels = train_labels.reshape(-1, 3, 4)
 
-
 cap = None
-if KITTI == False:
-    cap = cv2.VideoCapture(input)
+# if KITTI == False:
+#     cap = cv2.VideoCapture(input)
 
 def get_image(i, im_size):
     if KITTI == True:
-        im = cv2.imread(data_folder + train_image_names[i])
-        im_bw = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        im_resized = cv2.resize(im_bw, im_size)
-        return True, im, im_resized
+        # im = cv2.imread(data_folder + train_image_names[i])
+        # im_bw = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        # im_resized = cv2.resize(im_bw, im_size)
+        im = PIL.Image.open(data_folder + train_image_names[i]).convert('L')
+        im_resized = im.resize(im_size)
+        return True, np.asarray(im), np.asarray(im_resized)
     else:
-        ret, im = cap.read()
-        im_bw = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        im_resized = cv2.resize(im_bw, im_size)
-        return ret, im, im_resized
+        pass
+        # ret, im = cap.read()
+        # im_bw = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        # im_resized = cv2.resize(im_bw, im_size)
+        # return ret, im, im_resized
 
 def match_frames(T, H, W, kps1, kps2, descriptors1, descriptors2):    
     matches = bruteforce_match(descriptors1, descriptors2)
@@ -119,7 +130,9 @@ t_abs_gt = []
 
 i = 0
 
-while (KITTI == True and i < len(train_image_names)) or (cap is not None and cap.isOpened()):
+# while (KITTI == True and i < len(train_image_names)) or (cap is not None and cap.isOpened()):    
+while ((KITTI == True and i < len(train_image_names)) and exitInvoked == False):
+    # print(exitInvoked)
     t0 = time.time()
     ret, im_original, im = get_image(i, im_size)
     
@@ -195,7 +208,7 @@ while (KITTI == True and i < len(train_image_names)) or (cap is not None and cap
                     
                 else:
                     print("norm_pairs.shape[0] < 1")
-
+                signal.signal(signal.SIGINT, handler)
                
 
                 draw_points(im_original, feature_pairs, multiplier_x, multiplier_y)
@@ -207,26 +220,26 @@ while (KITTI == True and i < len(train_image_names)) or (cap is not None and cap
         else:
             last_kps, last_descriptors = kps, descriptors
 
-        cv2.imshow('im', im_original)
-        key = cv2.waitKey(1)
-        if key & 0xFF == ord('q'):
-            break
+        # cv2.imshow('im', im_original)
+        # key = cv2.waitKey(1)
+        # if key & 0xFF == ord('q'):
+            # break
 
-        if (i > 99 and i % 100 == 0) or (i > 0 and i < 11 and i % 10 == 0):
-            display_mat(cv2.cvtColor(im_original, cv2.COLOR_BGR2RGB))
+        # if (i > 99 and i % 100 == 0) or (i > 0 and i < 11 and i % 10 == 0):
+            # display_mat(cv2.cvtColor(im_original, cv2.COLOR_BGR2RGB))
 
         t1 = time.time()
         t_delta = (t1 - t0)
-        # print (1 / t_delta)
+        print (1 / t_delta)
         i += 1
 
     else:
         break
 
-cv2.destroyAllWindows()
-cv2.waitKey(4)
-if KITTI == False:
-    cap.release()
+# cv2.destroyAllWindows()
+# cv2.waitKey(4)
+# if KITTI == False:
+    # cap.release()
 
 # ### Save the point cloud for viewing in open3d
 
