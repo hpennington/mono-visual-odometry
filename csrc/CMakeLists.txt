@@ -21,5 +21,6 @@ add_executable(vo main.cpp)
 
 link_directories(/usr/local/lib/libopencv_videoio )
 link_directories(/usr/local/lib/libopencv_highgui )
+link_directories(/usr/local/lib/libopencv_features2d )
 
-target_link_libraries(vo ${OPENCV_LIBS} opencv_videoio opencv_highgui)
+target_link_libraries(vo ${OPENCV_LIBS} opencv_videoio opencv_highgui opencv_features2d)
