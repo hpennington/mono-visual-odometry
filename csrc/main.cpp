@@ -11,16 +11,14 @@
 int main(int argc, char *argv[]) 
 {
     auto cap = cv::VideoCapture(DATA_INPUT);
-
-
     cv::Mat frame;
 
     while (cap.isOpened()) {
         cap.read(frame);
 
         cv::imshow("Frame", frame);
-        int keyCode = cv::waitKey(1);
 
+        int keyCode = cv::waitKey(1);
         if (keyCode == 113) {
             break;
         }

@@ -3,7 +3,7 @@
 #include <string>
 
 // Script parameters
-bool KITTI = true;
+const bool KITTI = true;
 const std::string KITTI_DATA_DIRECTORY = "/Users/haydenpennington/dev/data/kitti/";
 const std::string DATA_INPUT = "../../videos/test_countryroad.mp4";
 const int im_w = 640;
