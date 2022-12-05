@@ -12,6 +12,8 @@
 #include "./config.h"
 
 auto orb = cv::ORB::create();
+auto bf_matcher = cv::BFMatcher::create();
+
 std::vector<cv::KeyPoint> last_keypoints;
 cv::Mat last_descriptors;
 cv::Mat last_corners;
@@ -56,6 +58,13 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
     return result;
 }
 
+std::vector<std::vector<cv::DMatch>>match_frames(std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2)
+{
+    std::vector<std::vector<cv::DMatch>> matches;
+    bf_matcher->knnMatch(descriptors1, descriptors1, matches, 2);
+    return matches;
+}
+
 void draw_points(cv::Mat frame, cv::Mat features, float mul_x, float mul_y) 
 {   
     for (int i = 0; i < features.rows; i += 1)
@@ -92,6 +101,8 @@ int main(int argc, char *argv[])
 
         if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0) 
         {
+            auto matches = match_frames(keypoints, last_keypoints, descriptors, last_descriptors);
+            
             draw_points(cv2_original, corners, mul_x, mul_y);
             cv::imshow("Frame", cv2_original);
 
