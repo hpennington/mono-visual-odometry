@@ -12,6 +12,9 @@
 #include "./config.h"
 
 auto orb = cv::ORB::create();
+std::vector<cv::KeyPoint> last_keypoints;
+cv::Mat last_descriptors;
+cv::Mat last_corners;
 
 struct FeatureResults
 {
@@ -87,23 +90,20 @@ int main(int argc, char *argv[])
         std::vector<cv::KeyPoint> keypoints = results.keypoints;
         cv::Mat descriptors = results.descriptors;
 
-        draw_points(cv2_original, corners, mul_x, mul_y);
+        if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0) 
+        {
+            draw_points(cv2_original, corners, mul_x, mul_y);
+            cv::imshow("Frame", cv2_original);
 
-        // Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> frame;
-        
-        // std::cout << cv2_frame.channels() << std::endl;
-        // cv::cv2eigen(cv2_frame, frame);
-
-        // Eigen::IOFormat fmt(4, 0, ", ", "\n", "", "");
-
-        // std::cout << frame.format(fmt) << std::endl;
-
-        cv::imshow("Frame", cv2_original);
-
-        int keyCode = cv::waitKey(1);
-        if (keyCode == 113) {
-            break;
+            int keyCode = cv::waitKey(1);
+            if (keyCode == 113) {
+                break;
+            }
         }
+
+        last_keypoints = keypoints;
+        last_descriptors = descriptors;
+        last_corners = corners;
     }
 
     cap.release();
