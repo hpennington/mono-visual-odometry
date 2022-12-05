@@ -14,7 +14,11 @@ int main(int argc, char *argv[])
     cv::Mat frame;
 
     while (cap.isOpened()) {
-        cap.read(frame);
+        bool frameGrabbed = cap.read(frame);
+        
+        if (frameGrabbed == false) {
+            break;
+        }
 
         cv::imshow("Frame", frame);
 
@@ -23,6 +27,9 @@ int main(int argc, char *argv[])
             break;
         }
     }
+
+    cap.release();
+    cv::destroyAllWindows();
 
     return 0;
 }
