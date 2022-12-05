@@ -17,6 +17,25 @@ cv::Mat transform_image(cv::Mat in, int n_rows, int n_columns)
     return out;
 }
 
+cv::Mat extract_features(cv::Mat frame, int max_corners, double quality, double min_distance)
+{
+    cv::Mat corners;
+    cv::goodFeaturesToTrack(frame, corners, max_corners, quality, min_distance);
+    return corners;
+}
+
+void draw_points(cv::Mat frame, cv::Mat features) 
+{   
+    for (int i = 0; i < features.rows; i += 1)
+    {
+        int u = features.ptr<float>(i)[0];
+        int v = features.ptr<float>(i)[1];
+        cv::Point center = cv::Point(u, v);
+        cv::Scalar line_color(0, 255, 0);
+        cv::circle(frame, center, 3.0, line_color, 1.0);
+    }
+}
+
 int main(int argc, char *argv[]) 
 {
     auto cap = cv::VideoCapture(DATA_INPUT);
@@ -31,6 +50,11 @@ int main(int argc, char *argv[])
 
         // Convert to B&W then resize and convert to Eigen matrix
         cv::Mat cv2_frame = transform_image(cv2_original, im_h, im_w);
+
+        cv::Mat corners = extract_features(cv2_frame, max_corners, quality, min_distance);
+
+        draw_points(cv2_original, corners);
+
         // Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> frame;
         
         // std::cout << cv2_frame.channels() << std::endl;

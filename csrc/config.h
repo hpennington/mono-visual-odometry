@@ -13,8 +13,9 @@ const int im_size[2] = {im_w, im_h};
 // ORB Detector parameters
 const int max_corners = 1500;
 const int kernel_size = 6;
+const float min_distance = 9;
 const float quality = 0.001;
-const int keypoint_size = 18;
+const int keypoint_size = 6;
 
 // Ransac parameters
 const int ransac_minsamples = 8;
