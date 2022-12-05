@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        // Convert to B&W then resize and convert to Eigen matrix
+        // Convert to B&W then resize
         cv::Mat cv2_frame = transform_image(cv2_original, im_h, im_w);
         float mul_x = (float)cv2_original.cols / (float)cv2_frame.cols;
         float mul_y = (float)cv2_original.rows / (float)cv2_frame.rows;
