@@ -63,7 +63,7 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
     return result;
 }
 
-std::vector<std::vector<std::vector<float>>> match_frames(std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2)
+std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2)
 {
     std::vector<std::vector<cv::DMatch>> matches;
     std::vector<std::vector<std::vector<float>>> pairs;
@@ -74,12 +74,12 @@ std::vector<std::vector<std::vector<float>>> match_frames(std::vector<cv::KeyPoi
         auto m = matches[j][0];
         auto n = matches[j][1];
         if (m.distance < n.distance * 0.75) {
-            auto pt1 = kps1[m.queryIdx].pt;
-            auto pt2 = kps2[m.trainIdx].pt;
-            float pt1x = pt1.x;
-            float pt1y = pt1.y;
-            float pt2x = pt2.x;
-            float pt2y = pt2.y;
+            auto pt1 = corners1.at<cv::Vec2f>(m.queryIdx);
+            auto pt2 = corners2.at<cv::Vec2f>(m.trainIdx);
+            float pt1x = pt1[0];
+            float pt1y = pt1[1];
+            float pt2x = pt2[0];
+            float pt2y = pt2[1];
             std::vector<std::vector<float>> pair = {{pt1x, pt1y}, {pt2x, pt2y}};
             pairs.push_back(pair);
         }
@@ -126,11 +126,12 @@ int main(int argc, char *argv[])
         FeatureResults results = extract_features(cv2_frame, max_corners, quality, min_distance);
         cv::Mat corners = results.corners;
         std::vector<cv::KeyPoint> keypoints = results.keypoints;
+
         cv::Mat descriptors = results.descriptors;
 
         if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0) 
         {
-            auto pairs = match_frames(keypoints, last_keypoints, descriptors, last_descriptors);
+            auto pairs = match_frames(corners, last_corners, keypoints, last_keypoints, descriptors, last_descriptors);
             
             draw_points(cv2_original, pairs, mul_x, mul_y);
             cv::imshow("Frame", cv2_original);
