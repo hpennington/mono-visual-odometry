@@ -26,6 +26,18 @@ struct FeatureResults
     cv::Mat descriptors;
 };
 
+Eigen::MatrixXf make_homogeneous(Eigen::MatrixXf in)
+{
+    Eigen::MatrixXf out = Eigen::MatrixXf::Ones(in.rows(), in.cols() + 1);
+    for (int i = 0; i < in.rows(); i += 1)
+    {
+        out(i, 0) = in(i, 0);
+        out(i, 1) = in(i, 1);
+        out(i, 2) = 1.0;
+    }
+    return out;
+}
+
 class FundamentalMatrixTransform
 {
 public:
@@ -65,16 +77,24 @@ public:
         Eigen::MatrixXf F_prime = svd2.matrixU() * S.diagonal() * svd.matrixV().transpose();
         this->params = F_prime;
     }
-
-    void calculate_residuals() 
+        
+    Eigen::MatrixXf calculate_residuals(Eigen::Matrix<float, Eigen::Dynamic, 2> X, Eigen::Matrix<float, Eigen::Dynamic, 2> Y) 
     {
+        Eigen::MatrixXf X_prime = make_homogeneous(X);
+        Eigen::MatrixXf Y_prime = make_homogeneous(Y);
+        Eigen::MatrixXf F = this->params;
+        Eigen::MatrixXf Fx = F * X_prime.transpose();
+        Eigen::MatrixXf Fty = F.transpose() * Y_prime.transpose();
 
+        return ((((Y_prime.transpose() * Fx).colwise().sum() + (Y_prime.transpose() * Fx).colwise().sum()).cwiseSqrt()) / (pow(Fx(0), 2) + pow(Fx(1), 2) + pow(Fty(0), 2) + pow(Fty(1), 2))).transpose();
     }
 };
 
 void ransac(FundamentalMatrixTransform model, Eigen::Matrix<float, Eigen::Dynamic, 2> kps1, Eigen::Matrix<float, Eigen::Dynamic, 2> kps2)
 {
     model.fit(kps1, kps2);
+    Eigen::MatrixXf residuals = model.calculate_residuals(kps1, kps2);
+    std::cout << residuals << std::endl;
 }
 
 cv::Mat transform_image(cv::Mat in, int n_rows, int n_columns)
