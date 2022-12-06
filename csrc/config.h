@@ -5,7 +5,7 @@
 // Script parameters
 const bool KITTI = true;
 const std::string KITTI_DATA_DIRECTORY = "/Users/haydenpennington/dev/data/kitti/";
-const std::string DATA_INPUT = "../../videos/test_motorcycle.mp4";
+const std::string DATA_INPUT = "../../videos/test_countryroad.mp4";
 const int im_w = 640;
 const int im_h = 480;
 const int im_size[2] = {im_w, im_h};

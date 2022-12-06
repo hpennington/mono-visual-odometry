@@ -12,7 +12,7 @@
 #include "./config.h"
 
 auto orb = cv::ORB::create();
-auto bf_matcher = cv::BFMatcher::create();
+auto bf_matcher = cv::BFMatcher::create(cv::NORM_HAMMING);
 
 std::vector<cv::KeyPoint> last_keypoints;
 cv::Mat last_descriptors;
@@ -33,6 +33,11 @@ cv::Mat transform_image(cv::Mat in, int n_rows, int n_columns)
     return out;
 }
 
+int minimum(int a, int b)
+{
+    return a > b ? b : a;
+}
+
 FeatureResults extract_features(cv::Mat frame, const int max_corners, double quality, double min_distance)
 {
     cv::Mat corners;
@@ -40,10 +45,10 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
     
     std::vector<cv::KeyPoint> keypoints;
     // Convert corners to keypoints
-    for (int i = 0; i < max_corners; i += 1) {
+    for (int i = 0; i < minimum(max_corners, corners.size().height); i += 1) {
         auto keypoint = cv::KeyPoint();
-        keypoint.pt.x = corners.ptr(i)[0];
-        keypoint.pt.y = corners.ptr(i)[1];
+        keypoint.pt.x = corners.at<float>(i, 0);
+        keypoint.pt.y = corners.at<float>(i, 1);
         keypoints.push_back(keypoint);
     }
 
@@ -58,22 +63,46 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
     return result;
 }
 
-std::vector<std::vector<cv::DMatch>>match_frames(std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2)
+std::vector<std::vector<std::vector<float>>> match_frames(std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2)
 {
     std::vector<std::vector<cv::DMatch>> matches;
+    std::vector<std::vector<std::vector<float>>> pairs;
     bf_matcher->knnMatch(descriptors1, descriptors1, matches, 2);
-    return matches;
+
+    for (int j = 0; j < matches.size(); j += 1) 
+    {   
+        auto m = matches[j][0];
+        auto n = matches[j][1];
+        if (m.distance < n.distance * 0.75) {
+            auto pt1 = kps1[m.queryIdx].pt;
+            auto pt2 = kps2[m.trainIdx].pt;
+            float pt1x = pt1.x;
+            float pt1y = pt1.y;
+            float pt2x = pt2.x;
+            float pt2y = pt2.y;
+            std::vector<std::vector<float>> pair = {{pt1x, pt1y}, {pt2x, pt2y}};
+            pairs.push_back(pair);
+        }
+    }
+
+    return pairs;
 }
 
-void draw_points(cv::Mat frame, cv::Mat features, float mul_x, float mul_y) 
+void draw_points(cv::Mat frame, std::vector<std::vector<std::vector<float>>> pairs, float mul_x, float mul_y) 
 {   
-    for (int i = 0; i < features.rows; i += 1)
+    for (int i = 0; i < pairs.size(); i += 1)
     {
-        float u = (mul_x * features.ptr<float>(i)[0]);
-        float v = (mul_y * features.ptr<float>(i)[1]);
-        cv::Point center = cv::Point(u, v);
+        float u1 = (mul_x * pairs[i][0][0]);
+        float v1 = (mul_y * pairs[i][0][1]);
+        float u2 = (mul_x * pairs[i][1][0]);
+        float v2 = (mul_y * pairs[i][1][1]);
+        cv::Point center = cv::Point(u1, v1);
         cv::Scalar line_color(0, 255, 0);
         cv::circle(frame, center, 3.0, line_color, 1.0);
+
+        cv::Point center2 = cv::Point(u2, v2);
+        cv::Scalar line_color2(0, 0, 255);
+        cv::circle(frame, center2, 3.0, line_color2, 1.0);
     }
 }
 
@@ -101,9 +130,9 @@ int main(int argc, char *argv[])
 
         if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0) 
         {
-            auto matches = match_frames(keypoints, last_keypoints, descriptors, last_descriptors);
+            auto pairs = match_frames(keypoints, last_keypoints, descriptors, last_descriptors);
             
-            draw_points(cv2_original, corners, mul_x, mul_y);
+            draw_points(cv2_original, pairs, mul_x, mul_y);
             cv::imshow("Frame", cv2_original);
 
             int keyCode = cv::waitKey(1);
