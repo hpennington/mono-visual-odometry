@@ -26,6 +26,12 @@ struct FeatureResults
     cv::Mat descriptors;
 };
 
+struct RansacTupleResult
+{
+    Eigen::Matrix<bool, Eigen::Dynamic, 1> mask;
+    Eigen::MatrixXf model;
+};
+
 Eigen::MatrixXf make_homogeneous(Eigen::MatrixXf in)
 {
     Eigen::MatrixXf out = Eigen::MatrixXf::Ones(in.rows(), in.cols() + 1);
@@ -66,15 +72,20 @@ public:
             A(i, 8) = 1;
         }
 
-        Eigen::JacobiSVD<Eigen::MatrixXf> svd;
-        svd.compute(A, Eigen::ComputeThinV | Eigen::ComputeThinU);
-        Eigen::MatrixXf F = svd.matrixV().transpose()(-1, Eigen::seq(0, Eigen::last)).reshaped(3, 3);        
+        Eigen::BDCSVD<Eigen::MatrixXf> svd;
+        svd.compute(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        Eigen::MatrixXf F = svd.matrixV().transpose()(Eigen::last-1, Eigen::seq(0, Eigen::last)).reshaped(3, 3);        
         
-        Eigen::JacobiSVD<Eigen::MatrixXf> svd2;
-        svd2.compute(F, Eigen::ComputeThinV | Eigen::ComputeThinU);
+        Eigen::BDCSVD<Eigen::MatrixXf> svd2;
+        svd2.compute(F, Eigen::ComputeThinU | Eigen::ComputeThinV);
         Eigen::MatrixXf S = svd2.singularValues();
         S(2) = 0;
-        Eigen::MatrixXf F_prime = svd2.matrixU() * S.diagonal() * svd.matrixV().transpose();
+
+        Eigen::MatrixXf d = Eigen::MatrixXf::Identity(3, 3);
+        d(0, 0) = S(0);
+        d(1, 1) = S(1);
+        d(2, 2) = S(2);
+        Eigen::MatrixXf F_prime = svd2.matrixU() * d * svd2.matrixV().transpose();
         this->params = F_prime;
     }
         
@@ -85,16 +96,38 @@ public:
         Eigen::MatrixXf F = this->params;
         Eigen::MatrixXf Fx = F * X_prime.transpose();
         Eigen::MatrixXf Fty = F.transpose() * Y_prime.transpose();
+    
+        auto numerator = ((Y_prime.transpose().cwiseProduct(Fx)).colwise().sum() + (Y_prime.transpose().cwiseProduct(Fx)).colwise().sum()).array().sqrt().abs();
+        auto denominator = (pow(Fx(0), 2) + pow(Fx(1), 2) + pow(Fty(0), 2) + pow(Fty(1), 2));
 
-        return ((((Y_prime.transpose() * Fx).colwise().sum() + (Y_prime.transpose() * Fx).colwise().sum()).cwiseSqrt()) / (pow(Fx(0), 2) + pow(Fx(1), 2) + pow(Fty(0), 2) + pow(Fty(1), 2))).transpose();
+        return (numerator / denominator).transpose();
     }
 };
 
-void ransac(FundamentalMatrixTransform model, Eigen::Matrix<float, Eigen::Dynamic, 2> kps1, Eigen::Matrix<float, Eigen::Dynamic, 2> kps2)
+RansacTupleResult ransac(FundamentalMatrixTransform model, Eigen::Matrix<float, Eigen::Dynamic, 2> kps1, Eigen::Matrix<float, Eigen::Dynamic, 2> kps2)
 {
-    model.fit(kps1, kps2);
-    Eigen::MatrixXf residuals = model.calculate_residuals(kps1, kps2);
-    std::cout << residuals << std::endl;
+    RansacTupleResult result;
+    int max_inliers = -1;
+
+    for (int i = 0; i < 150; i += 1)
+    {
+        int rand_value = rand() % (kps1.rows() - 8);
+        auto kps1_sub = kps1(Eigen::seq(rand_value, rand_value + 7), Eigen::all);
+        auto kps2_sub = kps2(Eigen::seq(rand_value, rand_value + 7), Eigen::all);
+        model.fit(kps1_sub, kps2_sub);
+        Eigen::MatrixXf residuals = model.calculate_residuals(kps1, kps2);
+        Eigen::Matrix<bool, Eigen::Dynamic, 1> mask = residuals.array() <= 10;
+        int n_inliers = mask.count();
+
+        if (n_inliers > max_inliers)
+        {
+            max_inliers = n_inliers;
+            result.mask = mask;
+            result.model = model.params;
+        }
+    }
+
+    return result;
 }
 
 cv::Mat transform_image(cv::Mat in, int n_rows, int n_columns)
@@ -139,6 +172,7 @@ std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::
 {
     std::vector<std::vector<cv::DMatch>> matches;
     std::vector<std::vector<std::vector<float>>> pairs;
+    // std::vector<std::vector<std::vector<float>>> norm_pairs;
 
     bf_matcher->knnMatch(descriptors1, descriptors1, matches, 2);
     
@@ -162,6 +196,8 @@ std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::
             
             std::vector<std::vector<float>> pair = {{pt1x, pt1y}, {pt2x, pt2y}};
             pairs.push_back(pair);
+            // std::vector<std::vector<float>> pair_norm = {{pt1x, pt1y}, {pt2x, pt2y}};
+            // norm_pairs.push_back(pair_norm)
         }
     }
     
@@ -185,7 +221,17 @@ std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::
     if (left_pt.rows() >= 8 && right_pt.rows() >= 8)
     {
         auto model = FundamentalMatrixTransform();
-        ransac(model, left_pt, right_pt);
+        auto result = ransac(model, left_pt, right_pt);
+        auto mask = result.mask;
+        auto F = result.model;
+
+        std::vector<std::vector<std::vector<float>>> sub;
+        for (size_t i = 0; i < mask.size(); ++i){
+            if (mask[i]) sub.push_back(pairs[i]);
+        }
+
+        return sub;
+
     }
 
     return pairs;
