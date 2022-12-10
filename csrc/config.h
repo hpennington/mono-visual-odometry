@@ -12,15 +12,15 @@ const int im_size[2] = {im_w, im_h};
 
 // ORB Detector parameters
 const int max_corners = 1500;
-const int kernel_size = 9;
+const int kernel_size = 6;
 const float min_distance = 6;
 const float quality = 0.001;
-const int keypoint_size = 6;
+const int keypoint_size = 18;
 
 // Ransac parameters
 const int ransac_minsamples = 8;
 const int ransac_max_trials = 150;
-const float ransac_residual_threshold = 0.001;
+const float ransac_residual_threshold = 0.1;
 
 // Pose extratction translation scaling
 const float tscale = 1.0;

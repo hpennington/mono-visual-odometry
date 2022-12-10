@@ -13,11 +13,7 @@
 #include "./config.h"
 
 auto orb = cv::ORB::create();
-auto bf_matcher = cv::BFMatcher::create(cv::NORM_HAMMING);
-
-std::vector<cv::KeyPoint> last_keypoints;
-cv::Mat last_descriptors;
-cv::Mat last_corners;
+auto matcher = cv::BFMatcher::create(cv::NORM_HAMMING);
 
 struct FeatureResults
 {
@@ -42,6 +38,40 @@ Eigen::MatrixXf make_homogeneous(Eigen::MatrixXf in)
         out(i, 2) = 1.0;
     }
     return out;
+}
+
+Eigen::MatrixXf make_homogeneous_single(Eigen::MatrixXf in)
+{
+    Eigen::MatrixXf out = Eigen::MatrixXf::Ones(1, in.rows() + 1);
+    for (int i = 0; i < in.rows(); i += 1)
+    {
+        out(0, 0) = in(0);
+        out(0, 1) = in(1);
+        out(0, 2) = 1.0;
+    }
+    return out;
+}
+
+Eigen::MatrixXf create_normalization_matrix(int h, int w)
+{
+    Eigen::MatrixXf T = Eigen::MatrixXf::Identity(3, 3);
+    float sx = 1.0 / (float)(w / 2);
+    float sy = 1.0 / (float)(h / 2);
+    float tx = sx * (float)(w / 2);
+    float ty = sy * (float)(h / 2);
+    T(0, 2) = -tx;
+    T(1, 2) = -ty;
+    T(0, 0) = sx;
+    T(1, 1) = sy;
+    return T;
+}
+
+Eigen::MatrixXf normalize(Eigen::MatrixXf T, Eigen::MatrixXf x)
+{
+    auto X = make_homogeneous_single(x);
+    auto result = (T * X.transpose()).transpose()(Eigen::all, Eigen::seq(0, 2));
+    // std::cout << result << std::endl;
+    return result;
 }
 
 class FundamentalMatrixTransform
@@ -72,12 +102,12 @@ public:
             A(i, 8) = 1;
         }
 
-        Eigen::BDCSVD<Eigen::MatrixXf> svd;
-        svd.compute(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        Eigen::JacobiSVD<Eigen::MatrixXf> svd;
+        svd.compute(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
         Eigen::MatrixXf F = svd.matrixV().transpose()(Eigen::last-1, Eigen::seq(0, Eigen::last)).reshaped(3, 3);        
         
-        Eigen::BDCSVD<Eigen::MatrixXf> svd2;
-        svd2.compute(F, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        Eigen::JacobiSVD<Eigen::MatrixXf> svd2;
+        svd2.compute(F, Eigen::ComputeFullU | Eigen::ComputeFullV);
         Eigen::MatrixXf S = svd2.singularValues();
         S(2) = 0;
 
@@ -109,14 +139,14 @@ RansacTupleResult ransac(FundamentalMatrixTransform model, Eigen::Matrix<float, 
     RansacTupleResult result;
     int max_inliers = -1;
 
-    for (int i = 0; i < 150; i += 1)
+    for (int i = 0; i < ransac_max_trials; i += 1)
     {
-        int rand_value = rand() % (kps1.rows() - 8);
-        auto kps1_sub = kps1(Eigen::seq(rand_value, rand_value + 7), Eigen::all);
-        auto kps2_sub = kps2(Eigen::seq(rand_value, rand_value + 7), Eigen::all);
+        int rand_value = rand() % (kps1.rows() - ransac_minsamples);
+        auto kps1_sub = kps1(Eigen::seq(rand_value, rand_value + ransac_minsamples), Eigen::all);
+        auto kps2_sub = kps2(Eigen::seq(rand_value, rand_value + ransac_minsamples), Eigen::all);
         model.fit(kps1_sub, kps2_sub);
         Eigen::MatrixXf residuals = model.calculate_residuals(kps1, kps2);
-        Eigen::Matrix<bool, Eigen::Dynamic, 1> mask = residuals.array() <= 10;
+        Eigen::Matrix<bool, Eigen::Dynamic, 1> mask = residuals.array() <= ransac_residual_threshold;
         int n_inliers = mask.count();
 
         if (n_inliers > max_inliers)
@@ -154,6 +184,7 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
         auto keypoint = cv::KeyPoint();
         keypoint.pt.x = corners.at<float>(i, 0);
         keypoint.pt.y = corners.at<float>(i, 1);
+        keypoint.size = keypoint_size;
         keypoints.push_back(keypoint);
     }
 
@@ -168,14 +199,19 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
     return result;
 }
 
-std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2)
+struct MatchReturn
+{
+   std::vector<std::vector<std::vector<float>>> pairs;
+   std::vector<std::vector<std::vector<float>>> norm_pairs; 
+};
+
+MatchReturn match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2, Eigen::MatrixXf T)
 {
     std::vector<std::vector<cv::DMatch>> matches;
     std::vector<std::vector<std::vector<float>>> pairs;
-    // std::vector<std::vector<std::vector<float>>> norm_pairs;
-
-    bf_matcher->knnMatch(descriptors1, descriptors1, matches, 2);
     
+    matcher->knnMatch(descriptors1, descriptors2, matches, 2);
+
     std::vector<std::vector<std::vector<float>>> lowes_matches;
     
     for (int j = 0; j < matches.size(); j += 1) 
@@ -184,18 +220,30 @@ std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::
         auto n = matches[j][1];
         
         if (m.distance < n.distance * 0.75) {
-            
-            auto pt1 = corners1.at<cv::Vec2f>(m.queryIdx);
-            auto pt2 = corners2.at<cv::Vec2f>(m.trainIdx);
-            float pt1x = pt1(0);
-            float pt1y = pt1(1);
-            float pt2x = pt2(0);
-            float pt2y = pt2(1);
 
-            lowes_matches.push_back({{pt1x, pt1y}, {pt2x, pt2y}});
+            auto pt1 = kps1[m.queryIdx].pt;
+            auto pt2 = kps2[m.trainIdx].pt;
+            float pt1x = pt1.x;
+            float pt1y = pt1.y;
+            float pt2x = pt2.x;
+            float pt2y = pt2.y;
+
+            
             
             std::vector<std::vector<float>> pair = {{pt1x, pt1y}, {pt2x, pt2y}};
+            Eigen::MatrixXf pt1_matrix = Eigen::MatrixXf::Zero(2, 1);
+            Eigen::MatrixXf pt2_matrix = Eigen::MatrixXf::Zero(2, 1);
+            pt1_matrix(0) = pair[0][0];
+            pt1_matrix(1) = pair[0][1];
+            pt2_matrix(0) = pair[1][0];
+            pt2_matrix(1) = pair[1][1];
+            auto norm_pt1_matrix = normalize(T, pt1_matrix);
+            auto norm_pt2_matrix = normalize(T, pt2_matrix);
+            std::vector<float> norm_pt1 = {norm_pt1_matrix(0), norm_pt1_matrix(1)};
+            std::vector<float> norm_pt2 = {norm_pt2_matrix(0), norm_pt2_matrix(1)};
+            std::vector<std::vector<float>> norm_pair = {norm_pt1, norm_pt2};
             pairs.push_back(pair);
+            lowes_matches.push_back(norm_pair);
             // std::vector<std::vector<float>> pair_norm = {{pt1x, pt1y}, {pt2x, pt2y}};
             // norm_pairs.push_back(pair_norm)
         }
@@ -218,7 +266,7 @@ std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::
         right_pt(j, 1) = pt2y;
     }
 
-    if (left_pt.rows() >= 8 && right_pt.rows() >= 8)
+    if (left_pt.rows() >= ransac_minsamples && right_pt.rows() >= ransac_minsamples)
     {
         auto model = FundamentalMatrixTransform();
         auto result = ransac(model, left_pt, right_pt);
@@ -226,15 +274,25 @@ std::vector<std::vector<std::vector<float>>> match_frames(cv::Mat corners1, cv::
         auto F = result.model;
 
         std::vector<std::vector<std::vector<float>>> sub;
+        std::vector<std::vector<std::vector<float>>> sub_norm;
         for (size_t i = 0; i < mask.size(); ++i){
             if (mask[i]) sub.push_back(pairs[i]);
+            if (mask[i]) sub_norm.push_back(lowes_matches[i]);
         }
 
-        return sub;
+        MatchReturn res;
+        res.pairs = sub;
+        res.norm_pairs = sub_norm;
+
+        return res;
 
     }
 
-    return pairs;
+    MatchReturn result2;
+    result2.pairs = pairs;
+    result2.norm_pairs = lowes_matches;
+
+    return result2;
 }
 
 void draw_points(cv::Mat frame, std::vector<std::vector<std::vector<float>>> pairs, float mul_x, float mul_y) 
@@ -264,7 +322,11 @@ int main(int argc, char *argv[])
 {
     auto cap = cv::VideoCapture(DATA_INPUT);
     cv::Mat cv2_original;
-    
+    std::vector<cv::KeyPoint> last_keypoints;
+    cv::Mat last_descriptors;
+    cv::Mat last_corners;
+    auto T = create_normalization_matrix(im_h, im_w);
+
     while (cap.isOpened()) {
         bool frameGrabbed = cap.read(cv2_original);
         
@@ -285,7 +347,10 @@ int main(int argc, char *argv[])
 
         if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0) 
         {
-            auto pairs = match_frames(corners, last_corners, keypoints, last_keypoints, descriptors, last_descriptors);
+            MatchReturn result = match_frames(corners, last_corners, keypoints, last_keypoints, descriptors, last_descriptors, T);
+            auto pairs = result.pairs;
+            
+            auto norm_pairs = result.norm_pairs;
             
             draw_points(cv2_original, pairs, mul_x, mul_y);
             cv::imshow("Frame", cv2_original);
