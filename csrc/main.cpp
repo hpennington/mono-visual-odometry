@@ -40,18 +40,6 @@ Eigen::MatrixXf make_homogeneous(Eigen::MatrixXf in)
     return out;
 }
 
-Eigen::MatrixXf make_homogeneous_single(Eigen::MatrixXf in)
-{
-    Eigen::MatrixXf out = Eigen::MatrixXf::Ones(1, in.rows() + 1);
-    for (int i = 0; i < in.rows(); i += 1)
-    {
-        out(0, 0) = in(0);
-        out(0, 1) = in(1);
-        out(0, 2) = 1.0;
-    }
-    return out;
-}
-
 Eigen::MatrixXf create_normalization_matrix(int h, int w)
 {
     Eigen::MatrixXf T = Eigen::MatrixXf::Identity(3, 3);
@@ -68,7 +56,7 @@ Eigen::MatrixXf create_normalization_matrix(int h, int w)
 
 Eigen::MatrixXf normalize(Eigen::MatrixXf T, Eigen::MatrixXf x)
 {
-    auto X = make_homogeneous_single(x);
+    auto X = make_homogeneous(x.transpose());
     auto result = (T * X.transpose()).transpose()(Eigen::all, Eigen::seq(0, 2));
     // std::cout << result << std::endl;
     return result;
