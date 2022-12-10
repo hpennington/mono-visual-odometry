@@ -15,17 +15,23 @@
 auto orb = cv::ORB::create();
 auto matcher = cv::BFMatcher::create(cv::NORM_HAMMING);
 
-struct FeatureResults
+struct FeaturesResult
 {
     cv::Mat corners;
     std::vector<cv::KeyPoint> keypoints;
     cv::Mat descriptors;
 };
 
-struct RansacTupleResult
+struct RansacResult
 {
     Eigen::Matrix<bool, Eigen::Dynamic, 1> mask;
     Eigen::MatrixXf model;
+};
+
+struct MatchesResult
+{
+   std::vector<std::vector<std::vector<float>>> pairs;
+   std::vector<std::vector<std::vector<float>>> norm_pairs; 
 };
 
 Eigen::MatrixXf make_homogeneous(Eigen::MatrixXf in)
@@ -122,9 +128,9 @@ public:
     }
 };
 
-RansacTupleResult ransac(FundamentalMatrixTransform model, Eigen::Matrix<float, Eigen::Dynamic, 2> kps1, Eigen::Matrix<float, Eigen::Dynamic, 2> kps2)
+RansacResult ransac(FundamentalMatrixTransform model, Eigen::Matrix<float, Eigen::Dynamic, 2> kps1, Eigen::Matrix<float, Eigen::Dynamic, 2> kps2)
 {
-    RansacTupleResult result;
+    RansacResult result;
     int max_inliers = -1;
 
     for (int i = 0; i < ransac_max_trials; i += 1)
@@ -161,7 +167,7 @@ int minimum(int a, int b)
     return a > b ? b : a;
 }
 
-FeatureResults extract_features(cv::Mat frame, const int max_corners, double quality, double min_distance)
+FeaturesResult extract_features(cv::Mat frame, const int max_corners, double quality, double min_distance)
 {
     cv::Mat corners;
     cv::goodFeaturesToTrack(frame, corners, max_corners, quality, min_distance);
@@ -179,7 +185,7 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
     cv::Mat descriptors;
     orb->compute(frame, keypoints, descriptors);
 
-    FeatureResults result;
+    FeaturesResult result;
     result.corners = corners;
     result.keypoints = keypoints;
     result.descriptors = descriptors;
@@ -187,13 +193,7 @@ FeatureResults extract_features(cv::Mat frame, const int max_corners, double qua
     return result;
 }
 
-struct MatchReturn
-{
-   std::vector<std::vector<std::vector<float>>> pairs;
-   std::vector<std::vector<std::vector<float>>> norm_pairs; 
-};
-
-MatchReturn match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2, Eigen::MatrixXf T)
+MatchesResult match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::KeyPoint> kps1, std::vector<cv::KeyPoint> kps2, cv::Mat descriptors1, cv::Mat descriptors2, Eigen::MatrixXf T)
 {
     std::vector<std::vector<cv::DMatch>> matches;
     std::vector<std::vector<std::vector<float>>> pairs;
@@ -268,7 +268,7 @@ MatchReturn match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::Key
             if (mask[i]) sub_norm.push_back(lowes_matches[i]);
         }
 
-        MatchReturn res;
+        MatchesResult res;
         res.pairs = sub;
         res.norm_pairs = sub_norm;
 
@@ -276,7 +276,7 @@ MatchReturn match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::Key
 
     }
 
-    MatchReturn result2;
+    MatchesResult result2;
     result2.pairs = pairs;
     result2.norm_pairs = lowes_matches;
 
@@ -309,6 +309,9 @@ void draw_points(cv::Mat frame, std::vector<std::vector<std::vector<float>>> pai
 int main(int argc, char *argv[]) 
 {
     auto cap = cv::VideoCapture(DATA_INPUT);
+    cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+    cap.set(cv::CAP_PROP_FPS, 20); // set fps before set fourcc
+    // cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
     cv::Mat cv2_original;
     std::vector<cv::KeyPoint> last_keypoints;
     cv::Mat last_descriptors;
@@ -327,7 +330,7 @@ int main(int argc, char *argv[])
         float mul_x = (float)cv2_original.cols / (float)cv2_frame.cols;
         float mul_y = (float)cv2_original.rows / (float)cv2_frame.rows;
 
-        FeatureResults results = extract_features(cv2_frame, max_corners, quality, min_distance);
+        FeaturesResult results = extract_features(cv2_frame, max_corners, quality, min_distance);
         cv::Mat corners = results.corners;
         std::vector<cv::KeyPoint> keypoints = results.keypoints;
 
@@ -335,7 +338,7 @@ int main(int argc, char *argv[])
 
         if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0) 
         {
-            MatchReturn result = match_frames(corners, last_corners, keypoints, last_keypoints, descriptors, last_descriptors, T);
+            MatchesResult result = match_frames(corners, last_corners, keypoints, last_keypoints, descriptors, last_descriptors, T);
             auto pairs = result.pairs;
             
             auto norm_pairs = result.norm_pairs;
