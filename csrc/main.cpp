@@ -9,6 +9,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/core/matx.hpp>
+#include <chrono>
 
 #include "./config.h"
 
@@ -64,7 +65,6 @@ Eigen::MatrixXf normalize(Eigen::MatrixXf T, Eigen::MatrixXf x)
 {
     auto X = make_homogeneous(x.transpose());
     auto result = (T * X.transpose()).transpose()(Eigen::all, Eigen::seq(0, 2));
-    // std::cout << result << std::endl;
     return result;
 }
 
@@ -215,8 +215,6 @@ MatchesResult match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::K
             float pt1y = pt1.y;
             float pt2x = pt2.x;
             float pt2y = pt2.y;
-
-            
             
             std::vector<std::vector<float>> pair = {{pt1x, pt1y}, {pt2x, pt2y}};
             Eigen::MatrixXf pt1_matrix = Eigen::MatrixXf::Zero(2, 1);
@@ -232,8 +230,6 @@ MatchesResult match_frames(cv::Mat corners1, cv::Mat corners2, std::vector<cv::K
             std::vector<std::vector<float>> norm_pair = {norm_pt1, norm_pt2};
             pairs.push_back(pair);
             lowes_matches.push_back(norm_pair);
-            // std::vector<std::vector<float>> pair_norm = {{pt1x, pt1y}, {pt2x, pt2y}};
-            // norm_pairs.push_back(pair_norm)
         }
     }
     
@@ -311,7 +307,7 @@ int main(int argc, char *argv[])
     auto cap = cv::VideoCapture(DATA_INPUT);
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
     cap.set(cv::CAP_PROP_FPS, 20); // set fps before set fourcc
-    // cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
     cv::Mat cv2_original;
     std::vector<cv::KeyPoint> last_keypoints;
     cv::Mat last_descriptors;
@@ -319,6 +315,9 @@ int main(int argc, char *argv[])
     auto T = create_normalization_matrix(im_h, im_w);
 
     while (cap.isOpened()) {
+
+        auto t0 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
         bool frameGrabbed = cap.read(cv2_original);
         
         if (frameGrabbed == false) {
@@ -355,6 +354,9 @@ int main(int argc, char *argv[])
         last_keypoints = keypoints;
         last_descriptors = descriptors;
         last_corners = corners;
+
+        auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        std::cout << (1.0f / (t1 - t0) * 1000) << std::endl;
     }
 
     cap.release();
