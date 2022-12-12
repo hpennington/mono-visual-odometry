@@ -64,7 +64,7 @@ Eigen::MatrixXf create_normalization_matrix(int h, int w)
 Eigen::MatrixXf normalize(Eigen::MatrixXf T, Eigen::MatrixXf x)
 {
     auto X = make_homogeneous(x.transpose());
-    auto result = (T * X.transpose()).transpose()(Eigen::all, Eigen::seq(0, 2));
+    auto result = (T * X.transpose()).transpose()(Eigen::indexing::all, Eigen::seq(0, 2));
     return result;
 }
 
@@ -98,7 +98,7 @@ public:
 
         Eigen::JacobiSVD<Eigen::MatrixXf> svd;
         svd.compute(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        Eigen::MatrixXf F = svd.matrixV().transpose()(Eigen::last-1, Eigen::seq(0, Eigen::last)).reshaped(3, 3);        
+        Eigen::MatrixXf F = svd.matrixV().transpose()(Eigen::indexing::last-1, Eigen::seq(0, Eigen::indexing::last)).reshaped(3, 3);        
         
         Eigen::JacobiSVD<Eigen::MatrixXf> svd2;
         svd2.compute(F, Eigen::ComputeFullU | Eigen::ComputeFullV);
@@ -136,8 +136,8 @@ RansacResult ransac(FundamentalMatrixTransform model, Eigen::Matrix<float, Eigen
     for (int i = 0; i < ransac_max_trials; i += 1)
     {
         int rand_value = rand() % (kps1.rows() - ransac_minsamples);
-        auto kps1_sub = kps1(Eigen::seq(rand_value, rand_value + ransac_minsamples), Eigen::all);
-        auto kps2_sub = kps2(Eigen::seq(rand_value, rand_value + ransac_minsamples), Eigen::all);
+        auto kps1_sub = kps1(Eigen::seq(rand_value, rand_value + ransac_minsamples), Eigen::indexing::all);
+        auto kps2_sub = kps2(Eigen::seq(rand_value, rand_value + ransac_minsamples), Eigen::indexing::all);
         model.fit(kps1_sub, kps2_sub);
         Eigen::MatrixXf residuals = model.calculate_residuals(kps1, kps2);
         Eigen::Matrix<bool, Eigen::Dynamic, 1> mask = residuals.array() <= ransac_residual_threshold;
