@@ -304,6 +304,7 @@ void draw_points(cv::Mat frame, std::vector<std::vector<std::vector<float>>> pai
 
 int main(int argc, char *argv[]) 
 {
+    auto DATA_INPUT = argv[1];
     auto cap = cv::VideoCapture(DATA_INPUT);
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
     cap.set(cv::CAP_PROP_FPS, 20); // set fps before set fourcc
