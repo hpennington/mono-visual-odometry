@@ -307,7 +307,7 @@ int main(int argc, char *argv[])
     auto DATA_INPUT = argv[1];
     auto cap = cv::VideoCapture(DATA_INPUT);
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
-    cap.set(cv::CAP_PROP_FPS, 20); // set fps before set fourcc
+    cap.set(cv::CAP_PROP_FPS, 100); // set fps before set fourcc
     cap.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
     cv::Mat cv2_original;
     std::vector<cv::KeyPoint> last_keypoints;
@@ -342,7 +342,7 @@ int main(int argc, char *argv[])
             auto pairs = result.pairs;
             
             auto norm_pairs = result.norm_pairs;
-            
+             
             draw_points(cv2_original, pairs, mul_x, mul_y);
             cv::imshow("Frame", cv2_original);
 
@@ -350,6 +350,7 @@ int main(int argc, char *argv[])
             if (keyCode == 113) {
                 break;
             }
+            
         }
 
         last_keypoints = keypoints;
