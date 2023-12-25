@@ -13,7 +13,7 @@ def bruteforce_match(descriptors1, descriptors2):
     matches = np.asarray(matches)
     return matches
 
-def extract_features(im, max_corners, quality, kernel_size, min_distance):
+def extract_features(im_original, im, max_corners, quality, kernel_size, min_distance):
     corners = cv2.goodFeaturesToTrack(
         im,
         maxCorners=max_corners,
@@ -21,5 +21,8 @@ def extract_features(im, max_corners, quality, kernel_size, min_distance):
         minDistance=min_distance,
         blockSize=kernel_size
     )
-
-    return corners
+    
+    colors = np.asarray([im_original[int(corner[0, 0]), int(corner[0, 1])] for corner in corners])
+    print("colors", colors.shape)
+    print("corners", corners.shape)
+    return corners, colors

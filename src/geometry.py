@@ -77,9 +77,9 @@ def calculate_projection(R, t, last_proj):
     return np.dot(RT, last_proj)
 
 # Triangulate from Hartley and Zisserman
-def triangulate(pose1, pose2, pts1, pts2, R, t):
+def triangulate(colors, pose1, pose2, pts1, pts2, R, t):
     out = np.zeros((pts1.shape[0], 4))
-
+    out_colors = np.zeros((pts1.shape[0], 3))
     r1 = R[0]
     r2 = R[1]
     r3 = R[2]
@@ -103,8 +103,9 @@ def triangulate(pose1, pose2, pts1, pts2, R, t):
         ]).reshape(4, 4)
         _, _, Vt = np.linalg.svd(A)
         out[i] = Vt[3]
+        out_colors[i] = colors[i]
 
-    return out
+    return out, out_colors
 
 class FundamentalMatrixModel:
     def __init__(self):
