@@ -13,7 +13,6 @@ dependencies:
   - python=3.8
   - scikit-image
   - scipy
-  - open3d
   - scikit-learn
   - pip:
     - numpy
