@@ -26,6 +26,9 @@ endif()
 find_package(OpenCV REQUIRED)
 include_directories(${OPENCV_INCLUDE_DIRS})
 
+# ── Ceres ─────────────────────────────────────────────────────────────────────
+find_package(Ceres REQUIRED)
+
 # ── Eigen (local) ─────────────────────────────────────────────────────────────
 include_directories(./eigen)
 
@@ -42,5 +45,6 @@ target_link_libraries(vo
   opencv_highgui
   opencv_features2d
   opencv_calib3d
+  Ceres::ceres
   Open3D::Open3D
 )
