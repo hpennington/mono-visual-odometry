@@ -379,6 +379,86 @@ Eigen::Vector3d sample_rgb_color(const cv::Mat& frame, const cv::Point2f& point)
         (double)bgr[0] / 255.0);
 }
 
+double reprojection_error(const cv::Mat& P, double x, double y, double z, const cv::Point2f& observed)
+{
+    double u = P.at<double>(0, 0) * x + P.at<double>(0, 1) * y + P.at<double>(0, 2) * z + P.at<double>(0, 3);
+    double v = P.at<double>(1, 0) * x + P.at<double>(1, 1) * y + P.at<double>(1, 2) * z + P.at<double>(1, 3);
+    double q = P.at<double>(2, 0) * x + P.at<double>(2, 1) * y + P.at<double>(2, 2) * z + P.at<double>(2, 3);
+    if (std::abs(q) < 1e-7) {
+        return std::numeric_limits<double>::infinity();
+    }
+
+    u /= q;
+    v /= q;
+    double du = u - observed.x;
+    double dv = v - observed.y;
+    return std::sqrt(du * du + dv * dv);
+}
+
+int add_triangulated_points(
+    const std::vector<cv::Point2f>& pts_prev,
+    const std::vector<cv::Point2f>& pts_curr,
+    const cv::Mat& P1,
+    const cv::Mat& P2,
+    const Eigen::Matrix3f& R_rel,
+    const Eigen::Vector3f& t_rel,
+    const Eigen::Matrix4f& cam_prev_to_world,
+    const cv::Mat& color_frame,
+    const cv::Mat& mask,
+    std::shared_ptr<open3d::geometry::PointCloud> point_cloud)
+{
+    if (pts_prev.empty() || pts_curr.empty()) {
+        return 0;
+    }
+
+    cv::Mat pts1_mat, pts2_mat;
+    cv::Mat(pts_prev).reshape(1).convertTo(pts1_mat, CV_64F);
+    cv::Mat(pts_curr).reshape(1).convertTo(pts2_mat, CV_64F);
+    pts1_mat = pts1_mat.t();
+    pts2_mat = pts2_mat.t();
+
+    cv::Mat points4D;
+    cv::triangulatePoints(P1, P2, pts1_mat, pts2_mat, points4D);
+
+    int added = 0;
+    for (int i = 0; i < points4D.cols; i++) {
+        if (!mask.empty() && mask.at<uchar>(i) == 0) {
+            continue;
+        }
+
+        double w = points4D.at<double>(3, i);
+        if (std::abs(w) <= 1e-7) {
+            continue;
+        }
+
+        double x = points4D.at<double>(0, i) / w;
+        double y = points4D.at<double>(1, i) / w;
+        double z = points4D.at<double>(2, i) / w;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) {
+            continue;
+        }
+
+        double err_prev = reprojection_error(P1, x, y, z, pts_prev[i]);
+        double err_curr = reprojection_error(P2, x, y, z, pts_curr[i]);
+        if (err_prev > max_reprojection_error_px || err_curr > max_reprojection_error_px) {
+            continue;
+        }
+
+        Eigen::Vector3f p_prev((float)x, (float)y, (float)z);
+        Eigen::Vector3f p_curr = R_rel * p_prev + t_rel;
+        if (p_prev.z() <= 0.0f || p_curr.z() <= 0.0f || p_prev.z() > max_triangulated_depth) {
+            continue;
+        }
+
+        Eigen::Vector4f p_world_h = cam_prev_to_world * Eigen::Vector4f(p_prev.x(), p_prev.y(), p_prev.z(), 1.0f);
+        point_cloud->points_.push_back(Eigen::Vector3d(p_world_h.x(), p_world_h.y(), p_world_h.z()));
+        point_cloud->colors_.push_back(sample_rgb_color(color_frame, pts_curr[i]));
+        ++added;
+    }
+
+    return added;
+}
+
 int minimum(int a, int b)
 {
     return a > b ? b : a;
@@ -565,6 +645,7 @@ int main(int argc, char *argv[])
     std::vector<cv::KeyPoint> last_keypoints;
     cv::Mat last_descriptors;
     cv::Mat last_corners;
+    cv::Mat last_frame;
     auto T = create_normalization_matrix(im_h, im_w);
 
     cv::Mat K = create_camera_matrix();
@@ -724,6 +805,58 @@ int main(int argc, char *argv[])
                         point_cloud->colors_.push_back(ba_colors[i]);
                     }
                 }
+
+                if (use_dense_mapping && !last_frame.empty()) {
+                    std::vector<cv::Point2f> dense_prev_all;
+                    cv::goodFeaturesToTrack(last_frame, dense_prev_all, dense_max_points, dense_quality, dense_min_distance);
+
+                    if (!dense_prev_all.empty()) {
+                        std::vector<cv::Point2f> dense_curr_all;
+                        std::vector<uchar> status;
+                        std::vector<float> lk_errors;
+                        cv::calcOpticalFlowPyrLK(
+                            last_frame,
+                            cv2_frame,
+                            dense_prev_all,
+                            dense_curr_all,
+                            status,
+                            lk_errors,
+                            cv::Size(21, 21),
+                            3);
+
+                        std::vector<cv::Point2f> dense_prev;
+                        std::vector<cv::Point2f> dense_curr;
+                        dense_prev.reserve(dense_prev_all.size());
+                        dense_curr.reserve(dense_curr_all.size());
+
+                        for (size_t i = 0; i < dense_prev_all.size(); ++i) {
+                            if (!status[i] || lk_errors[i] > dense_lk_max_error) {
+                                continue;
+                            }
+
+                            float dx = dense_curr_all[i].x - dense_prev_all[i].x;
+                            float dy = dense_curr_all[i].y - dense_prev_all[i].y;
+                            if (std::sqrt(dx * dx + dy * dy) < dense_min_displacement) {
+                                continue;
+                            }
+
+                            dense_prev.push_back(dense_prev_all[i]);
+                            dense_curr.push_back(dense_curr_all[i]);
+                        }
+
+                        add_triangulated_points(
+                            dense_prev,
+                            dense_curr,
+                            P1,
+                            P2,
+                            R_rel,
+                            t_rel,
+                            cam_prev_to_world,
+                            cv2_color_frame,
+                            cv::Mat(),
+                            point_cloud);
+                    }
+                }
             }
         } else {
             cv::imshow("Frame", cv2_original);
@@ -737,6 +870,7 @@ int main(int argc, char *argv[])
         last_keypoints = keypoints;
         last_descriptors = descriptors;
         last_corners = corners;
+        last_frame = cv2_frame.clone();
 
         auto t1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         std::cout << (1.0f / (t1 - t0) * 1000) << std::endl;

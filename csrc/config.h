@@ -29,7 +29,7 @@ const std::array<double, 5> camera_distortion_coeffs = {
 
 // ORB Detector parameters
 const int max_corners = 10000;
-const int kernel_size = 6;
+const int kernel_size = 12;
 const float min_distance = 3;
 const float quality = 0.01;
 const int keypoint_size = 27;
@@ -53,8 +53,16 @@ const bool use_bundle_adjustment = true;
 const int ba_min_points = 20;
 const int ba_max_iterations = 20;
 
+// Semi-dense mapping. Sparse ORB still estimates pose; LK tracks add map density.
+const bool use_dense_mapping = true;
+const int dense_max_points = 20000;
+const double dense_quality = 0.001;
+const double dense_min_distance = 4.0;
+const double dense_lk_max_error = 20.0;
+const double dense_min_displacement = 1.0;
+
 // Point cloud clustering
-const int n_points = 3;
+const int n_points = 2;
 const float dbscan_eps = tscale * 0.5;
 
 #endif
