@@ -9,8 +9,15 @@ const int im_w = 640;
 const int im_h = 480;
 const int im_size[2] = {im_w, im_h};
 
+// Camera intrinsics for the resized frame used by VO.
+// Replace these with calibrated values if you have them.
+const double camera_fx = im_w;
+const double camera_fy = im_w;
+const double camera_cx = im_w / 2.0;
+const double camera_cy = im_h / 2.0;
+
 // ORB Detector parameters
-const int max_corners = 1500;
+const int max_corners = 6000;
 const int kernel_size = 6;
 const float min_distance = 6;
 const float quality = 0.001;
@@ -22,8 +29,12 @@ const int ransac_max_trials = 150;
 const float ransac_residual_threshold = 0.05;
 
 // Pose extratction translation scaling
-const float tscale = 1.0;
-const double pose_scale = 10.0;
+const float tscale = 2.0;
+const double pose_scale = 1.0;
+
+// Keyframe selection — minimum median feature displacement (pixels) before triangulating
+const float kf_min_displacement = 2.0f;
+const double max_triangulated_depth = 100.0;
 
 // Point cloud clustering
 const int n_points = 2;
