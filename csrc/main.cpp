@@ -9,6 +9,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/core/matx.hpp>
+#include <open3d/Open3D.h>
 #include <chrono>
 
 #include "./config.h"
@@ -302,7 +303,7 @@ void draw_points(cv::Mat frame, std::vector<std::vector<std::vector<float>>> pai
     }
 }
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
     auto DATA_INPUT = argv[1];
     auto cap = cv::VideoCapture(DATA_INPUT);
@@ -315,12 +316,21 @@ int main(int argc, char *argv[])
     cv::Mat last_corners;
     auto T = create_normalization_matrix(im_h, im_w);
 
+    cv::Mat K = (cv::Mat_<double>(3, 3) << im_w, 0, im_w / 2.0,
+                                            0, im_w, im_h / 2.0,
+                                            0,    0,         1.0);
+
+    auto point_cloud = std::make_shared<open3d::geometry::PointCloud>();
+
+    cv::Mat R_global = cv::Mat::eye(3, 3, CV_64F);
+    cv::Mat t_global = cv::Mat::zeros(3, 1, CV_64F);
+
     while (cap.isOpened()) {
 
         auto t0 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
         bool frameGrabbed = cap.read(cv2_original);
-        
+
         if (frameGrabbed == false) {
             break;
         }
@@ -336,15 +346,66 @@ int main(int argc, char *argv[])
 
         cv::Mat descriptors = results.descriptors;
 
-        if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0) 
+        if (last_descriptors.rows > 0 && last_keypoints.size() > 0 && last_corners.rows > 0)
         {
             MatchesResult result = match_frames(corners, last_corners, keypoints, last_keypoints, descriptors, last_descriptors, T);
             auto pairs = result.pairs;
-            
+
             auto norm_pairs = result.norm_pairs;
-            
+
             draw_points(cv2_original, pairs, mul_x, mul_y);
             cv::imshow("Frame", cv2_original);
+
+            if (pairs.size() >= 5) {
+                std::vector<cv::Point2f> pts1, pts2;
+                for (const auto& pair : pairs) {
+                    pts1.push_back(cv::Point2f(pair[0][0], pair[0][1]));
+                    pts2.push_back(cv::Point2f(pair[1][0], pair[1][1]));
+                }
+
+                cv::Mat pose_mask;
+                cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC, 0.999, 1.0, pose_mask);
+
+                if (!E.empty() && E.rows == 3 && E.cols == 3) {
+                    cv::Mat R_rel, t_rel;
+                    cv::recoverPose(E, pts1, pts2, K, R_rel, t_rel, pose_mask);
+
+                    // P1 from previous global pose, P2 from updated global pose
+                    cv::Mat P1;
+                    cv::hconcat(R_global, t_global, P1);
+                    P1 = K * P1;
+
+                    cv::Mat R_new = R_rel * R_global;
+                    cv::Mat t_new = R_rel * t_global + t_rel * pose_scale;
+                    cv::Mat P2;
+                    cv::hconcat(R_new, t_new, P2);
+                    P2 = K * P2;
+
+                    cv::Mat pts1_mat, pts2_mat;
+                    cv::Mat(pts1).reshape(1).convertTo(pts1_mat, CV_64F);
+                    cv::Mat(pts2).reshape(1).convertTo(pts2_mat, CV_64F);
+                    pts1_mat = pts1_mat.t();
+                    pts2_mat = pts2_mat.t();
+
+                    cv::Mat points4D;
+                    cv::triangulatePoints(P1, P2, pts1_mat, pts2_mat, points4D);
+
+                    for (int i = 0; i < points4D.cols; i++) {
+                        double w = points4D.at<double>(3, i);
+                        if (std::abs(w) > 1e-7) {
+                            double x = points4D.at<double>(0, i) / w;
+                            double y = points4D.at<double>(1, i) / w;
+                            double z = points4D.at<double>(2, i) / w;
+                            if (z > 0.0 && z < 100.0) {
+                                point_cloud->points_.push_back(Eigen::Vector3d(x, y, z));
+                            }
+                        }
+                    }
+
+                    R_global = R_new;
+                    t_global = t_new;
+                }
+            }
 
             int keyCode = cv::waitKey(1);
             if (keyCode == 113) {
@@ -362,6 +423,8 @@ int main(int argc, char *argv[])
 
     cap.release();
     cv::destroyAllWindows();
+
+    open3d::visualization::DrawGeometries({point_cloud}, "Point Cloud");
 
     return 0;
 }

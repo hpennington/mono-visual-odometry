@@ -3,7 +3,7 @@
 #include <string>
 
 // Script parameters
-const bool KITTI = true;
+const bool KITTI = false;
 const std::string KITTI_DATA_DIRECTORY = "/Users/haydenpennington/dev/data/kitti/";
 const int im_w = 640;
 const int im_h = 480;
@@ -23,6 +23,7 @@ const float ransac_residual_threshold = 0.05;
 
 // Pose extratction translation scaling
 const float tscale = 1.0;
+const double pose_scale = 10.0;
 
 // Point cloud clustering
 const int n_points = 2;
