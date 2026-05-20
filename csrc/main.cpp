@@ -228,6 +228,14 @@ cv::Mat transform_image(cv::Mat in, int n_rows, int n_columns)
     return out;
 }
 
+Eigen::Vector3d sample_rgb_color(const cv::Mat& frame, const cv::Point2f& point)
+{
+    int x = std::clamp((int)std::lround(point.x), 0, frame.cols - 1);
+    int y = std::clamp((int)std::lround(point.y), 0, frame.rows - 1);
+    cv::Vec3b bgr = frame.at<cv::Vec3b>(y, x);
+    return Eigen::Vector3d(bgr[2] / 255.0, bgr[1] / 255.0, bgr[0] / 255.0);
+}
+
 int minimum(int a, int b)
 {
     return a > b ? b : a;
@@ -434,8 +442,10 @@ int main(int argc, char *argv[])
             break;
         }
 
-        // Convert to B&W then resize
+        // Convert to B&W then resize; also keep a resized color frame for sampling
         cv::Mat cv2_frame = transform_image(cv2_original, im_h, im_w);
+        cv::Mat cv2_color_frame;
+        cv::resize(cv2_original, cv2_color_frame, cv::Size(im_w, im_h), cv::INTER_LINEAR);
         float mul_x = (float)cv2_original.cols / (float)cv2_frame.cols;
         float mul_y = (float)cv2_original.rows / (float)cv2_frame.rows;
 
@@ -522,6 +532,8 @@ int main(int argc, char *argv[])
 
                         Eigen::Vector4f p_world_h = cam_prev_to_world * Eigen::Vector4f(p_prev.x(), p_prev.y(), p_prev.z(), 1.0f);
                         point_cloud->points_.push_back(Eigen::Vector3d(p_world_h.x(), p_world_h.y(), p_world_h.z()));
+
+                        point_cloud->colors_.push_back(sample_rgb_color(cv2_color_frame, pts_curr[i]));
                     }
                 }
             }
